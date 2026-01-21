@@ -532,11 +532,10 @@ export async function editDriveLinkConversation(
         await setSetting('link_drive', newLink);
 
         await ctx.reply(
-            `✅ *Link Drive berhasil diupdate!*\n\n` +
+            `✅ Link Drive berhasil diupdate!\n\n` +
             `🔗 Link baru:\n${newLink}\n\n` +
             `Link akan muncul di halaman Galeri.\n\n` +
-            `Gunakan /dashboard untuk melihat semua perubahan.`,
-            { parse_mode: 'Markdown' }
+            `Gunakan /dashboard untuk melihat semua perubahan.`
         );
 
         console.log(`✅ Admin ${ctx.from?.id} updated drive link to: ${newLink}`);
