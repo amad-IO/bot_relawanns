@@ -15,7 +15,10 @@ config();
 // Environment variables
 const BOT_TOKEN = process.env.BOT_TOKEN || '';
 const DATABASE_URL = process.env.DATABASE_URL || '';
-const ADMIN_ID = parseInt(process.env.ADMIN_TELEGRAM_ID || '0');
+const ADMIN_IDS = (process.env.ADMIN_TELEGRAM_ID || '0')
+    .split(',')
+    .map(id => parseInt(id.trim()))
+    .filter(id => !isNaN(id));
 
 // Database client
 const sql = postgres(DATABASE_URL, {
@@ -32,7 +35,8 @@ const bot = new Bot(BOT_TOKEN);
 // ============================================
 
 const isAdmin = (ctx: any, next: () => Promise<void>) => {
-    if (ctx.from?.id === ADMIN_ID) {
+    const userId = ctx.from?.id;
+    if (userId && ADMIN_IDS.includes(userId)) {
         return next();
     }
     return ctx.reply('❌ Anda tidak memiliki akses ke command ini.');
@@ -376,8 +380,14 @@ async function sendErrorNotification(errorMessage: string, errorDetails: any) {
             `💬 Detail:\n\`\`\`\n${JSON.stringify(errorDetails, null, 2).substring(0, 500)}\n\`\`\`\n\n` +
             `⚡ Bot akan mencoba restart otomatis...`;
 
-        await bot.api.sendMessage(ADMIN_ID, message, { parse_mode: 'Markdown' });
-        console.log('📤 Error notification sent to admin');
+        for (const adminId of ADMIN_IDS) {
+            try {
+                await bot.api.sendMessage(adminId, message, { parse_mode: 'Markdown' });
+            } catch (e) {
+                console.error(`Failed to send error notification to ${adminId}:`, e);
+            }
+        }
+        console.log(`📤 Error notification sent to ${ADMIN_IDS.length} admins`);
     } catch (notifError) {
         console.error('Failed to send error notification:', notifError);
     }
@@ -429,18 +439,20 @@ bot.start({
         console.log(`✅ Bot Relawanns started: @${botInfo.username}`);
         console.log(`📊 Ready to receive notifications and export data`);
 
-        // Send startup notification to admin
-        try {
-            await bot.api.sendMessage(
-                ADMIN_ID,
-                `✅ *Bot Relawanns Online!*\n\n` +
-                `🤖 @${botInfo.username}\n` +
-                `🕒 ${new Date().toLocaleString('id-ID')}\n\n` +
-                `Status: Ready to work! 🚀`,
-                { parse_mode: 'Markdown' }
-            );
-        } catch (e) {
-            console.error('Failed to send startup notification');
+        // Send startup notification to all admins
+        for (const adminId of ADMIN_IDS) {
+            try {
+                await bot.api.sendMessage(
+                    adminId,
+                    `✅ *Bot Relawanns Online!*\n\n` +
+                    `🤖 @${botInfo.username}\n` +
+                    `🕒 ${new Date().toLocaleString('id-ID')}\n\n` +
+                    `Status: Ready to work! 🚀`,
+                    { parse_mode: 'Markdown' }
+                );
+            } catch (e) {
+                console.error(`Failed to send startup notification to ${adminId}`);
+            }
         }
     },
 });
