@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  # Bot Admin
+  bot-admin:
+    build: ./bot_admin
+    container_name: bot-admin
+    restart: unless-stopped
+    # Load environment variables directly from the existing .env file
+    env_file:
+      - ./bot_admin/.env
+    networks:
+      - bot-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Bot Relawanns
+  bot-relawanns:
+    build: ./bot_relawanns
+    container_name: bot-relawanns
+    restart: unless-stopped
+    # Load environment variables directly from the existing .env file
+    env_file:
+      - ./bot_relawanns/.env
+    networks:
+      - bot-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  bot-network:
+    driver: bridge

@@ -1,0 +1,30 @@
+{
+    "name": "bot-relawanns",
+    "version": "1.0.0",
+    "description": "Bot Telegram untuk notifikasi dan recap pendaftaran Relawanns",
+    "main": "dist/bot.js",
+    "scripts": {
+        "dev": "tsx watch src/bot.ts",
+        "build": "tsc",
+        "start": "node dist/bot.js"
+    },
+    "keywords": [
+        "telegram",
+        "bot",
+        "relawanns",
+        "notifications"
+    ],
+    "author": "Relawanns Team",
+    "license": "ISC",
+    "dependencies": {
+        "grammy": "^1.30.0",
+        "postgres": "^3.4.4",
+        "exceljs": "^4.4.0",
+        "dotenv": "^16.4.5"
+    },
+    "devDependencies": {
+        "@types/node": "^22.10.5",
+        "tsx": "^4.19.2",
+        "typescript": "^5.7.2"
+    }
+}
