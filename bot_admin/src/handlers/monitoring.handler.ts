@@ -168,9 +168,9 @@ export async function handleExport(ctx: Context) {
             // Row data (without registration number)
             worksheet.addRow({
                 no: i + 1,
-                name: reg.full_name || '-',
+                name: reg.name || '-',
                 email: reg.email || '-',
-                phone: reg.whatsapp || '-',
+                phone: reg.phone || '-',
                 age: reg.age || '-',
                 city: reg.city || '-',
                 payment: reg.payment_proof_url ? 'Lihat gambar di kolom' : 'Tidak ada',
