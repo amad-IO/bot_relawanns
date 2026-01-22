@@ -85,31 +85,26 @@ export async function handleDashboard(ctx: Context) {
 export async function handleViewRegistrants(ctx: Context) {
     try {
         const registrants = await getRegistrants(10);
+        const currentCount = await getRegistrantCount();
+        const settings = await getAllSettings();
+        const maxQuota = settings.max_quota || '0';
 
         if (registrants.length === 0) {
-            await ctx.reply('📭 Belum ada pendaftar.');
+            await ctx.reply(`📊 Jumlah Pendaftar: 0 / ${maxQuota}\n\nBelum ada pendaftar.`);
             return;
         }
 
         // Format list
-        let message = `👥 *DAFTAR PENDAFTAR* (10 terakhir)\\n\\n`;
+        let message = `📊 *Jumlah Pendaftar: ${currentCount} / ${maxQuota}*\n(10 pendaftar terakhir)\n\n`;
 
-        registrants.forEach((reg: any, index: number) => {
-            const num = index + 1;
-            const regTime = reg.created_at
-                ? format(new Date(reg.created_at), 'dd MMM yyyy, HH:mm', { locale: localeId })
-                : 'N/A';
+        registrants.forEach((reg: any) => {
+            // Use registration_number if available, otherwise fallback (though schema should have it)
+            const no = reg.registration_number || '-';
+            const name = reg.name || 'Tanpa Nama';
+            const phone = reg.phone || '-';
 
-            message += `*${num}. ${reg.name}*\\n`;
-            message += `📧 ${reg.email || 'N/A'}\\n`;
-            message += `📱 ${reg.phone}\\n`;
-            message += `🎂 ${reg.age} tahun\\n`;
-            message += `🏙️ ${reg.city}\\n`;
-            message += `⏰ ${regTime}\\n\\n`;
+            message += `${no}. ${name} : ${phone}\n`;
         });
-
-        const totalCount = await getRegistrantCount();
-        message += `\\n📊 Total: ${totalCount} pendaftar`;
 
         await ctx.reply(message, { parse_mode: 'Markdown' });
 

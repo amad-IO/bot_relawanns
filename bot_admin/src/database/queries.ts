@@ -29,6 +29,7 @@ export interface Registration {
     telegram_username: string | null;
     status: 'pending' | 'approved' | 'rejected';
     created_at: Date;
+    registration_number: number;
 }
 
 // ============================================
