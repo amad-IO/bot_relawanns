@@ -33,6 +33,24 @@ services:
         max-size: "10m"
         max-file: "3"
 
+
+  # Queue Worker (Background Job Processor)
+  queue-worker:
+    build: ./worker
+    container_name: relawanns-queue-worker
+    restart: unless-stopped
+    env_file:
+      - ./worker/.env
+    networks:
+      - bot-network
+    mem_limit: 150m
+    cpus: 0.2
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 networks:
   bot-network:
     driver: bridge

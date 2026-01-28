@@ -1,0 +1,20 @@
+{
+    "name": "relawanns-queue-worker",
+    "version": "1.0.0",
+    "description": "Background job processor for Relawanns registration queue",
+    "main": "worker.js",
+    "scripts": {
+        "start": "node worker.js",
+        "test": "node test.js"
+    },
+    "dependencies": {
+        "ioredis": "^5.3.2",
+        "postgres": "^3.4.3",
+        "@supabase/supabase-js": "^2.39.7",
+        "googleapis": "^128.0.0",
+        "node-fetch": "^2.7.0"
+    },
+    "engines": {
+        "node": ">=18.0.0"
+    }
+}
