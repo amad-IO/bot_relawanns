@@ -172,32 +172,44 @@ async function processRegistration(job) {
     // ===== STEP 6: INCREMENT REGISTRATION COUNTER =====
     console.log('   🔢 Incrementing registration counter...');
 
+    // Get current count (key-value schema)
+    const [currentCountRow] = await sql`
+      SELECT value FROM event_settings WHERE key = 'current_registrants'
+    `;
+    const currentCount = parseInt(currentCountRow?.value || '0');
+
+    // Increment
     await sql`
       UPDATE event_settings
-      SET current_registrants = current_registrants + 1
-      WHERE id = 1
+      SET value = ${(currentCount + 1).toString()}
+      WHERE key = 'current_registrants'
     `;
 
     console.log('   ✅ Counter incremented');
 
     // ===== STEP 7: CHECK QUOTA & AUTO-CLOSE =====
-    const [eventSettings] = await sql`
-      SELECT 
-        current_registrants,
-        max_quota,
-        registration_status
-      FROM event_settings
-      WHERE id = 1
+    // Get settings (key-value schema)
+    const settings = await sql`
+      SELECT key, value FROM event_settings 
+      WHERE key IN ('current_registrants', 'max_quota', 'registration_status')
     `;
 
-    console.log(`   📊 Registration count: ${eventSettings.current_registrants}/${eventSettings.max_quota}`);
+    const eventSettings = {};
+    settings.forEach((row) => {
+      eventSettings[row.key] = row.value;
+    });
+
+    const newCount = currentCount + 1;
+    const maxQuota = parseInt(eventSettings.max_quota || '100');
+
+    console.log(`   📊 Registration count: ${newCount}/${maxQuota}`);
 
     // Auto-close if quota is full
-    if (eventSettings.current_registrants >= eventSettings.max_quota && eventSettings.registration_status === 'open') {
+    if (newCount >= maxQuota && eventSettings.registration_status === 'open') {
       await sql`
         UPDATE event_settings
-        SET registration_status = 'close'
-        WHERE id = 1
+        SET value = 'close'
+        WHERE key = 'registration_status'
       `;
       console.log('   🚫 QUOTA FULL - Registration automatically closed!');
     }
@@ -215,8 +227,8 @@ async function processRegistration(job) {
       participationHistory: registration.participation_history === 'yes' ? 'Sudah Pernah' : 'Belum Pernah',
       vestSize: registration.vest_size,
       paymentProofUrl: paymentUrl,
-      registrationNumber: eventSettings.current_registrants, // Real count!
-      maxQuota: eventSettings.max_quota,                     // Real quota!
+      registrationNumber: newCount, // Real count!
+      maxQuota: maxQuota, // Real quota!
       eventTitle: eventTitle,
       eventDate: eventDate
     });
