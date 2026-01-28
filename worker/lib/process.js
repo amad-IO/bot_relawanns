@@ -25,7 +25,7 @@ const CHAT_ID = process.env.NOTIFICATION_CHAT_ID;
  * @param {Object} job - Job data from queue
  */
 async function processRegistration(job) {
-  const { registrationId, files, event Title, eventDate } = job;
+  const { registrationId, files, eventTitle, eventDate } = job;
 
   // Initialize clients
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -63,7 +63,7 @@ async function processRegistration(job) {
 
     // Normalize event date
     let normalizedDate = eventDate;
-    if (eventDate && event Date.includes(',')) {
+    if (eventDate && eventDate.includes(',')) {
       const dateMatch = eventDate.match(/(\d+)\s+(\w+)\s+(\d{4})/);
       if (dateMatch) {
         const monthMap = {
