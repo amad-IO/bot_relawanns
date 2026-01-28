@@ -155,11 +155,54 @@ async function processRegistration(job) {
       extractFileName(files.instagramProof.url)
     ];
 
-    await supabase.storage
+    console.log(`   📋 Files to delete: ${JSON.stringify(filesToDelete)}`);
+
+    const { data: deleteData, error: deleteError } = await supabase.storage
       .from('registrations')
       .remove(filesToDelete);
 
-    // ===== STEP 6: SEND TEL system (ASYNC) =====
+    if (deleteError) {
+      console.error(`   ⚠️  Delete error: ${deleteError.message}`);
+      console.error(`   Details: ${JSON.stringify(deleteError)}`);
+    } else {
+      console.log(`   ✅ ${filesToDelete.length} files deleted from Supabase Storage`);
+    }
+
+
+    // ===== STEP 6: INCREMENT REGISTRATION COUNTER =====
+    console.log('   🔢 Incrementing registration counter...');
+
+    await sql`
+      UPDATE event_settings
+      SET current_registrants = current_registrants + 1
+      WHERE id = 1
+    `;
+
+    console.log('   ✅ Counter incremented');
+
+    // ===== STEP 7: CHECK QUOTA & AUTO-CLOSE =====
+    const [eventSettings] = await sql`
+      SELECT 
+        current_registrants,
+        max_quota,
+        registration_status
+      FROM event_settings
+      WHERE id = 1
+    `;
+
+    console.log(`   📊 Registration count: ${eventSettings.current_registrants}/${eventSettings.max_quota}`);
+
+    // Auto-close if quota is full
+    if (eventSettings.current_registrants >= eventSettings.max_quota && eventSettings.registration_status === 'open') {
+      await sql`
+        UPDATE event_settings
+        SET registration_status = 'close'
+        WHERE id = 1
+      `;
+      console.log('   🚫 QUOTA FULL - Registration automatically closed!');
+    }
+
+    // ===== STEP 8: SEND TELEGRAM NOTIFICATION =====
     console.log('   📱 Sending Telegram...');
 
     await sendTelegramNotification({
@@ -172,8 +215,10 @@ async function processRegistration(job) {
       participationHistory: registration.participation_history === 'yes' ? 'Sudah Pernah' : 'Belum Pernah',
       vestSize: registration.vest_size,
       paymentProofUrl: paymentUrl,
-      registrationNumber: 0, // Can calculate from DB if needed
-      maxQuota: 100
+      registrationNumber: eventSettings.current_registrants, // Real count!
+      maxQuota: eventSettings.max_quota,                     // Real quota!
+      eventTitle: eventTitle,
+      eventDate: eventDate
     });
 
     await sql.end();
