@@ -43,7 +43,7 @@ services:
       - ./worker/.env
     networks:
       - bot-network
-    mem_limit: 150m
+    mem_limit: 512m
     cpus: 0.2
     logging:
       driver: "json-file"
