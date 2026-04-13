@@ -137,7 +137,7 @@ async function processRegistration(job) {
       registration.age,
       registration.city,
       registration.instagram_username,
-      registration.participation_history === 'yes' ? 'Sudah Pernah' : 'Belum Pernah',
+      registration.participation_history || 'Belum Pernah',
       registration.vest_size,
       paymentUrl,
       tiktokUrl,
@@ -224,7 +224,7 @@ async function processRegistration(job) {
       age: registration.age,
       city: registration.city,
       instagramUsername: registration.instagram_username,
-      participationHistory: registration.participation_history === 'yes' ? 'Sudah Pernah' : 'Belum Pernah',
+      participationHistory: registration.participation_history || 'Belum Pernah',
       vestSize: registration.vest_size,
       paymentProofUrl: paymentUrl,
       registrationNumber: newCount, // Real count!
