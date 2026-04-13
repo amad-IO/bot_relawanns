@@ -41,7 +41,7 @@ async function enqueueRegistration(jobData) {
       INSERT INTO job_queue (registration_id, payload, status)
       VALUES (
         ${jobData.registrationId},
-        ${JSON.stringify(payload)},
+        ${client.json(payload)},
         'pending'
       )
       RETURNING id, registration_id, created_at
@@ -83,7 +83,8 @@ async function dequeueRegistration() {
     }
 
     // Reconstruct job object to match existing format
-    const payload = job.payload;
+    // Safety: handle payload as string or object
+    const payload = typeof job.payload === 'string' ? JSON.parse(job.payload) : job.payload;
     const result = {
       id: job.id,
       registrationId: job.registration_id,
