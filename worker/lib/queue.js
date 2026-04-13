@@ -1,42 +1,25 @@
-// Queue Helper Module - Redis wrapper for job queue
-const Redis = require('ioredis');
+// Queue Helper Module - PostgreSQL-based job queue (replaces Redis)
+const postgres = require('postgres');
 
-const QUEUE_NAME = 'registration-queue';
-const FAILED_QUEUE_NAME = 'registration-failed-queue';
+// Initialize PostgreSQL client (singleton)
+let sql = null;
 
-// Initialize Redis client
-let redis = null;
+function getClient() {
+  if (!sql) {
+    const databaseUrl = process.env.DATABASE_URL;
 
-function getRedisClient() {
-  if (!redis) {
-    const redisUrl = process.env.REDIS_URL;
-
-    if (!redisUrl) {
-      throw new Error('REDIS_URL environment variable is not set');
+    if (!databaseUrl) {
+      throw new Error('DATABASE_URL environment variable is not set');
     }
 
-    redis = new Redis(redisUrl, {
-      maxRetriesPerRequest: 3,
-      retryStrategy(times) {
-        const delay = Math.min(times * 50, 2000);
-        return delay;
-      },
-      reconnectOnError(err) {
-        console.error('Redis connection error:', err.message);
-        return true;
-      }
-    });
-
-    redis.on('connect', () => {
-      console.log('✅ Redis connected');
-    });
-
-    redis.on('error', (err) => {
-      console.error('❌ Redis error:', err.message);
+    sql = postgres(databaseUrl, {
+      max: 1,
+      idle_timeout: 20,
+      connect_timeout: 10,
     });
   }
 
-  return redis;
+  return sql;
 }
 
 /**
@@ -46,20 +29,23 @@ function getRedisClient() {
  */
 async function enqueueRegistration(jobData) {
   try {
-    const client = getRedisClient();
+    const client = getClient();
 
-    const job = {
-      id: jobData.registrationId,
-      registrationId: jobData.registrationId,
+    const payload = {
       files: jobData.files,
       eventTitle: jobData.eventTitle,
       eventDate: jobData.eventDate,
-      timestamp: Date.now(),
-      retryCount: 0
     };
 
-    // Push to queue (left push, worker will right pop - FIFO)
-    await client.lpush(QUEUE_NAME, JSON.stringify(job));
+    const [job] = await client`
+      INSERT INTO job_queue (registration_id, payload, status)
+      VALUES (
+        ${jobData.registrationId},
+        ${JSON.stringify(payload)},
+        'pending'
+      )
+      RETURNING id, registration_id, created_at
+    `;
 
     console.log(`📋 Job #${job.id} added to queue`);
 
@@ -71,28 +57,46 @@ async function enqueueRegistration(jobData) {
 }
 
 /**
- * Get a job from the queue (blocking pop)
- * Worker will call this continuously
- * @param {number} timeout - Timeout in seconds (0 = wait forever)
- * @returns {Promise<Object|null>} Job object or null if timeout
+ * Get a pending job from the queue (atomic dequeue)
+ * Uses FOR UPDATE SKIP LOCKED for concurrent-safe processing
+ * @returns {Promise<Object|null>} Job object or null if no pending jobs
  */
-async function dequeueRegistration(timeout = 2) {
+async function dequeueRegistration() {
   try {
-    const client = getRedisClient();
+    const client = getClient();
 
-    // BRPOP = Blocking Right Pop (waits for data)
-    const result = await client.brpop(QUEUE_NAME, timeout);
+    const [job] = await client`
+      UPDATE job_queue
+      SET status = 'processing', started_at = NOW()
+      WHERE id = (
+        SELECT id FROM job_queue
+        WHERE status = 'pending'
+        ORDER BY created_at ASC
+        LIMIT 1
+        FOR UPDATE SKIP LOCKED
+      )
+      RETURNING *
+    `;
 
-    if (!result) {
-      return null; // Timeout, no jobs
+    if (!job) {
+      return null; // No pending jobs
     }
 
-    const [queueName, jobString] = result;
-    const job = JSON.parse(jobString);
+    // Reconstruct job object to match existing format
+    const payload = job.payload;
+    const result = {
+      id: job.id,
+      registrationId: job.registration_id,
+      files: payload.files,
+      eventTitle: payload.eventTitle,
+      eventDate: payload.eventDate,
+      timestamp: new Date(job.created_at).getTime(),
+      retryCount: job.retry_count,
+    };
 
-    console.log(`📤 Job #${job.id} dequeued for processing`);
+    console.log(`📤 Job #${result.id} dequeued for processing`);
 
-    return job;
+    return result;
   } catch (error) {
     console.error('Failed to dequeue job:', error);
     throw error;
@@ -100,28 +104,47 @@ async function dequeueRegistration(timeout = 2) {
 }
 
 /**
- * Move failed job to failed queue for later inspection
+ * Mark a job as completed
+ * @param {number|string} jobId - Job ID
+ */
+async function markJobCompleted(jobId) {
+  try {
+    const client = getClient();
+
+    await client`
+      UPDATE job_queue
+      SET status = 'completed', completed_at = NOW()
+      WHERE id = ${jobId}
+    `;
+
+    console.log(`✅ Job #${jobId} marked as completed`);
+  } catch (error) {
+    console.error('Failed to mark job as completed:', error);
+  }
+}
+
+/**
+ * Mark a job as failed (replaces moveToFailedQueue)
  * @param {Object} job - Failed job object
  * @param {Error} error - Error that caused failure
  */
 async function moveToFailedQueue(job, error) {
   try {
-    const client = getRedisClient();
+    const client = getClient();
 
-    const failedJob = {
-      ...job,
-      failedAt: Date.now(),
-      error: {
-        message: error.message,
-        stack: error.stack
-      }
-    };
+    await client`
+      UPDATE job_queue
+      SET 
+        status = 'failed',
+        failed_at = NOW(),
+        error_message = ${error.message || 'Unknown error'},
+        retry_count = retry_count + 1
+      WHERE id = ${job.id}
+    `;
 
-    await client.lpush(FAILED_QUEUE_NAME, JSON.stringify(failedJob));
-
-    console.log(`❌ Job #${job.id} moved to failed queue`);
+    console.log(`❌ Job #${job.id} marked as failed`);
   } catch (err) {
-    console.error('Failed to move job to failed queue:', err);
+    console.error('Failed to mark job as failed:', err);
   }
 }
 
@@ -131,55 +154,55 @@ async function moveToFailedQueue(job, error) {
  */
 async function getQueueStats() {
   try {
-    const client = getRedisClient();
+    const client = getClient();
 
-    const [pendingCount, failedCount] = await Promise.all([
-      client.llen(QUEUE_NAME),
-      client.llen(FAILED_QUEUE_NAME)
-    ]);
+    const [stats] = await client`
+      SELECT 
+        COUNT(*) FILTER (WHERE status = 'pending') as pending,
+        COUNT(*) FILTER (WHERE status = 'processing') as processing,
+        COUNT(*) FILTER (WHERE status = 'completed') as completed,
+        COUNT(*) FILTER (WHERE status = 'failed') as failed
+      FROM job_queue
+    `;
 
     return {
-      pending: pendingCount,
-      failed: failedCount,
-      timestamp: Date.now()
+      pending: parseInt(stats.pending),
+      processing: parseInt(stats.processing),
+      completed: parseInt(stats.completed),
+      failed: parseInt(stats.failed),
+      timestamp: Date.now(),
     };
   } catch (error) {
     console.error('Failed to get queue stats:', error);
-    return { pending: 0, failed: 0, timestamp: Date.now() };
+    return { pending: 0, processing: 0, completed: 0, failed: 0, timestamp: Date.now() };
   }
 }
 
 /**
  * Retry a failed job
- * @param {string} jobId - Job ID to retry
+ * @param {string|number} jobId - Job ID to retry
  */
 async function retryFailedJob(jobId) {
   try {
-    const client = getRedisClient();
+    const client = getClient();
 
-    // Get all failed jobs
-    const failedJobs = await client.lrange(FAILED_QUEUE_NAME, 0, -1);
+    const [result] = await client`
+      UPDATE job_queue
+      SET 
+        status = 'pending',
+        failed_at = NULL,
+        error_message = NULL,
+        started_at = NULL
+      WHERE id = ${jobId} AND status = 'failed'
+      RETURNING id
+    `;
 
-    for (let i = 0; i < failedJobs.length; i++) {
-      const job = JSON.parse(failedJobs[i]);
-
-      if (job.id === jobId) {
-        // Remove from failed queue
-        await client.lrem(FAILED_QUEUE_NAME, 1, failedJobs[i]);
-
-        // Reset retry count and add back to main queue
-        job.retryCount = (job.retryCount || 0) + 1;
-        delete job.failedAt;
-        delete job.error;
-
-        await client.lpush(QUEUE_NAME, JSON.stringify(job));
-
-        console.log(`🔄 Job #${jobId} moved back to queue for retry`);
-        return true;
-      }
+    if (result) {
+      console.log(`🔄 Job #${jobId} moved back to pending for retry`);
+      return true;
     }
 
-    console.log(`⚠️ Job #${jobId} not found in failed queue`);
+    console.log(`⚠️ Job #${jobId} not found in failed jobs`);
     return false;
   } catch (error) {
     console.error('Failed to retry job:', error);
@@ -188,21 +211,22 @@ async function retryFailedJob(jobId) {
 }
 
 /**
- * Close Redis connection
+ * Close database connection
  */
 async function closeConnection() {
-  if (redis) {
-    await redis.quit();
-    redis = null;
-    console.log('🔌 Redis connection closed');
+  if (sql) {
+    await sql.end();
+    sql = null;
+    console.log('🔌 Database connection closed');
   }
 }
 
 module.exports = {
   enqueueRegistration,
   dequeueRegistration,
+  markJobCompleted,
   moveToFailedQueue,
   getQueueStats,
   retryFailedJob,
-  closeConnection
+  closeConnection,
 };

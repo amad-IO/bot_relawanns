@@ -9,9 +9,9 @@ RUN npm ci --only=production
 # Copy application files
 COPY . .
 
-# Health check - verify Redis connection
+# Health check - verify PostgreSQL connection
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-  CMD node -e "const Redis = require('ioredis'); const redis = new Redis(process.env.REDIS_URL); redis.ping().then(() => { redis.quit(); process.exit(0); }).catch(() => process.exit(1));" || exit 1
+  CMD node -e "const postgres = require('postgres'); const sql = postgres(process.env.DATABASE_URL, { max: 1, connect_timeout: 5 }); sql\`SELECT 1\`.then(() => { sql.end(); process.exit(0); }).catch(() => process.exit(1));" || exit 1
 
 # Run worker
 CMD ["node", "worker.js"]

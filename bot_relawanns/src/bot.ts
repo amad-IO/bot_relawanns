@@ -213,6 +213,9 @@ async function handleRecap(ctx: any) {
                 phone,
                 age,
                 city,
+                instagram_username,
+                participation_history,
+                vest_size,
                 payment_proof_url,
                 created_at
             FROM registrations
@@ -247,6 +250,9 @@ async function handleRecap(ctx: any) {
             { header: 'No. WhatsApp', key: 'phone', width: 15 },
             { header: 'Usia', key: 'age', width: 8 },
             { header: 'Kota Domisili', key: 'city', width: 20 },
+            { header: 'Instagram', key: 'instagram', width: 20 },
+            { header: 'Riwayat Partisipasi', key: 'participation', width: 20 },
+            { header: 'Ukuran Vest', key: 'vest_size', width: 14 },
             { header: 'Bukti Transfer (URL)', key: 'payment_url', width: 50 },
             { header: 'Waktu Daftar', key: 'created_at', width: 20 },
         ];
@@ -270,6 +276,9 @@ async function handleRecap(ctx: any) {
                 phone: reg.phone,
                 age: reg.age,
                 city: reg.city,
+                instagram: reg.instagram_username || '-',
+                participation: reg.participation_history ? 'Sudah Pernah' : 'Belum Pernah',
+                vest_size: reg.vest_size || '-',
                 payment_url: reg.payment_proof_url || '',
                 created_at: reg.created_at ? new Date(reg.created_at).toLocaleString('id-ID') : ''
             });

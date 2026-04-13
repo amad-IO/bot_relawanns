@@ -21,10 +21,16 @@ export interface EventSetting {
 export interface Registration {
     id: number;
     name: string;
+    email: string;
     age: number;
     phone: string;
     city: string;
+    instagram_username: string | null;
+    participation_history: boolean | null;
+    vest_size: string | null;
     payment_proof_url: string | null;
+    tiktok_proof_url: string | null;
+    instagram_proof_url: string | null;
     telegram_user_id: number;
     telegram_username: string | null;
     status: 'pending' | 'approved' | 'rejected';

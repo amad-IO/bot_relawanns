@@ -139,6 +139,9 @@ export async function handleExport(ctx: Context) {
             { header: 'No. WhatsApp', key: 'phone', width: 16 },
             { header: 'Usia', key: 'age', width: 6 },
             { header: 'Kota Domisili', key: 'city', width: 20 },
+            { header: 'Instagram', key: 'instagram', width: 20 },
+            { header: 'Riwayat Partisipasi', key: 'participation', width: 20 },
+            { header: 'Ukuran Vest', key: 'vest_size', width: 14 },
             { header: 'Bukti Transfer', key: 'payment', width: 30 },
             { header: 'Waktu Daftar', key: 'created_at', width: 20 },
         ];
@@ -168,6 +171,9 @@ export async function handleExport(ctx: Context) {
                 phone: reg.phone || '-',
                 age: reg.age || '-',
                 city: reg.city || '-',
+                instagram: reg.instagram_username || '-',
+                participation: reg.participation_history ? 'Sudah Pernah' : 'Belum Pernah',
+                vest_size: reg.vest_size || '-',
                 payment: reg.payment_proof_url ? 'Lihat gambar di kolom' : 'Tidak ada',
                 created_at: reg.created_at ? format(new Date(reg.created_at), 'dd MMM yyyy HH:mm', { locale: localeId }) : '-'
             });
@@ -192,9 +198,9 @@ export async function handleExport(ctx: Context) {
                         extension: 'png',
                     });
 
-                    // Embed image in cell (column G = index 6)
+                    // Embed image in cell (column J = index 9, shifted by 3 new columns)
                     worksheet.addImage(imageId, {
-                        tl: { col: 6, row: currentRow - 1 }, // top-left corner
+                        tl: { col: 9, row: currentRow - 1 }, // top-left corner
                         ext: { width: 150, height: 150 } // image size
                     });
 
@@ -212,12 +218,12 @@ export async function handleExport(ctx: Context) {
         // Auto-filter
         worksheet.autoFilter = {
             from: 'A1',
-            to: 'H1'
+            to: 'K1'
         };
 
         // Auto-fit columns (except image column)
         worksheet.columns.forEach((column, index) => {
-            if (index !== 6) { // Not the payment column (G = index 6)
+            if (index !== 9) { // Not the payment column (J = index 9, shifted by 3 new columns)
                 let maxLength = 10;
                 column.eachCell?.({ includeEmpty: false }, (cell) => {
                     const cellValue = cell.value ? cell.value.toString() : '';
@@ -266,7 +272,7 @@ export async function handleExport(ctx: Context) {
 
 function generateCSV(registrants: any[]): string {
     // Header
-    const header = 'No,Nama,Email,Phone,Usia,Kota,Payment URL,Waktu Daftar';
+    const header = 'No,Nama,Email,Phone,Usia,Kota,Instagram,Riwayat Partisipasi,Ukuran Vest,Payment URL,Waktu Daftar';
 
     // Rows
     const rows = registrants.map((reg, index) => {
@@ -277,6 +283,9 @@ function generateCSV(registrants: any[]): string {
             `"${reg.phone}"`,
             reg.age,
             `"${reg.city}"`,
+            `"${reg.instagram_username || 'N/A'}"`,
+            `"${reg.participation_history ? 'Sudah Pernah' : 'Belum Pernah'}"`,
+            `"${reg.vest_size || 'N/A'}"`,
             `"${reg.payment_proof_url || 'N/A'}"`,
             reg.created_at ? format(new Date(reg.created_at), 'dd/MM/yyyy HH:mm') : 'N/A'
         ].join(',');

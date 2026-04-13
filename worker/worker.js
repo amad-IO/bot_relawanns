@@ -1,6 +1,12 @@
-// Queue Worker - Processes background jobs from Redis queue
-const { dequeueRegistration, moveToFailedQueue, closeConnection } = require('./lib/queue');
+// Queue Worker - Processes background jobs from PostgreSQL queue
+const { dequeueRegistration, moveToFailedQueue, markJobCompleted, closeConnection } = require('./lib/queue');
 const { processRegistration } = require('./lib/process');
+
+// Helper: sleep for ms milliseconds
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Polling interval when queue is empty (3 seconds)
+const POLL_INTERVAL_MS = 3000;
 
 // Telegram error notification
 async function sendErrorAlert(error, context = '') {
@@ -44,8 +50,8 @@ async function sendErrorAlert(error, context = '') {
 }
 
 console.log('🚀 Relawanns Queue Worker Started');
-console.log('📡 Monitoring Redis queue...');
-console.log('🔗 Redis URL:', process.env.REDIS_URL?.slice(0, 30) + '...\n');
+console.log('📡 Monitoring PostgreSQL queue...');
+console.log(`⏱️  Poll interval: ${POLL_INTERVAL_MS / 1000}s\n`);
 
 let isShuttingDown = false;
 
@@ -54,11 +60,12 @@ async function runWorker() {
     let job = null;
 
     try {
-      // Block and wait for job from queue (2s timeout)
-      job = await dequeueRegistration(2);
+      // Poll for pending job from PostgreSQL queue
+      job = await dequeueRegistration();
 
       if (!job) {
-        // No jobs in queue, continue waiting
+        // No jobs in queue, wait before polling again
+        await sleep(POLL_INTERVAL_MS);
         continue;
       }
 
@@ -73,6 +80,9 @@ async function runWorker() {
       await processRegistration(job);
       const duration = ((Date.now() - startTime) / 1000).toFixed(2);
 
+      // Mark job as completed in database
+      await markJobCompleted(job.id);
+
       console.log(`✅ Job #${job.id} completed successfully in ${duration}s\n`);
 
     } catch (error) {
@@ -80,13 +90,13 @@ async function runWorker() {
       console.error(`   Error: ${error.message}`);
 
       if (job) {
-        console.log(`   Moving job #${job.id} to failed queue...`);
+        console.log(`   Marking job #${job.id} as failed...`);
         await moveToFailedQueue(job, error);
       }
 
       // Wait 5 seconds before continuing (backoff)
       console.log('   Waiting 5s before retry...\n');
-      await new Promise(resolve => setTimeout(resolve, 5000));
+      await sleep(5000);
     }
   }
 
