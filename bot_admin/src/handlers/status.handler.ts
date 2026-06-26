@@ -152,3 +152,44 @@ export async function checkAndAutoClose(): Promise<boolean> {
         return false;
     }
 }
+
+/**
+ * Handler: Toggle Maintenance Mode
+ * Aktifkan/nonaktifkan mode maintenance di halaman /daftar
+ */
+export async function handleMaintenanceToggle(ctx: Context) {
+    try {
+        const userId = ctx.from?.id;
+
+        // Cek status maintenance saat ini
+        const currentMode = await getSetting('maintenance_mode');
+        const isCurrentlyActive = currentMode === 'true';
+
+        // Toggle
+        const newMode = isCurrentlyActive ? 'false' : 'true';
+        await setSetting('maintenance_mode', newMode, userId);
+
+        if (newMode === 'true') {
+            await ctx.reply(
+                `🚧 *MAINTENANCE MODE DIAKTIFKAN*\n\n` +
+                `Halaman pendaftaran sekarang menampilkan halaman maintenance.\n` +
+                `Pendaftar tidak bisa mengakses form pendaftaran.\n\n` +
+                `Untuk menonaktifkan, tekan tombol Maintenance Mode lagi.`,
+                { parse_mode: 'Markdown' }
+            );
+        } else {
+            await ctx.reply(
+                `✅ *MAINTENANCE MODE DINONAKTIFKAN*\n\n` +
+                `Halaman pendaftaran kembali normal.\n` +
+                `Pendaftar bisa mengakses form pendaftaran.`,
+                { parse_mode: 'Markdown' }
+            );
+        }
+
+        console.log(`🚧 Maintenance mode ${newMode === 'true' ? 'diaktifkan' : 'dinonaktifkan'} oleh admin ${userId}`);
+    } catch (error) {
+        console.error('Error handleMaintenanceToggle:', error);
+        await ctx.reply('❌ Gagal mengubah maintenance mode. Silakan coba lagi.');
+    }
+}
+

@@ -83,7 +83,9 @@ bot.command('start', async (ctx) => {
         .text('📝 Edit Event', 'menu_edit_event')
         .text('👥 Lihat Pendaftar', 'view_registrants')
         .row()
-        .text('📤 Export Data', 'export_data');
+        .text('📤 Export Data', 'export_data')
+        .row()
+        .text('🚧 Maintenance Mode', 'toggle_maintenance');
 
     await ctx.reply(
         `🎉 *Selamat datang di Relawanns Control Bot!*\n\n` +
@@ -206,6 +208,8 @@ bot.callbackQuery('menu_edit_event', async (ctx) => {
         .row()
         .text('🔗 Edit Link Drive', 'edit_drive_link')
         .row()
+        .text('🚧 Maintenance Mode', 'toggle_maintenance')
+        .row()
         .text('« Kembali', 'back_to_main');
 
     await ctx.editMessageText(
@@ -282,6 +286,12 @@ bot.callbackQuery('export_data', async (ctx) => {
     await monitoringHandler.handleExport(ctx);
 });
 
+// Toggle Maintenance Mode
+bot.callbackQuery('toggle_maintenance', async (ctx) => {
+    try { await ctx.answerCallbackQuery(); } catch { }
+    await statusHandler.handleMaintenanceToggle(ctx);
+});
+
 // Back to main menu
 bot.callbackQuery('back_to_main', async (ctx) => {
     try { await ctx.answerCallbackQuery(); } catch { }
@@ -295,7 +305,9 @@ bot.callbackQuery('back_to_main', async (ctx) => {
         .text('📝 Edit Event', 'menu_edit_event')
         .text('👥 Lihat Pendaftar', 'view_registrants')
         .row()
-        .text('📤 Export Data', 'export_data');
+        .text('📤 Export Data', 'export_data')
+        .row()
+        .text('🚧 Maintenance Mode', 'toggle_maintenance');
 
     await ctx.editMessageText(
         '🏠 *Menu Utama*\n\nPilih aksi yang ingin dilakukan:',
