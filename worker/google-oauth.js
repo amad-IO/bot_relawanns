@@ -153,17 +153,32 @@ async function getOrCreateSheet(sheetName) {
                             fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)',
                         },
                     },
-                    // 2. Auto-resize all columns
-                    {
-                        autoResizeDimensions: {
-                            dimensions: {
+                    // 2. Set lebar kolom fix sesuai jenis data
+                    ...([
+                        50,   // A: No
+                        200,  // B: Nama
+                        260,  // C: Email
+                        140,  // D: No WA
+                        55,   // E: Usia
+                        140,  // F: Domisili
+                        170,  // G: Instagram
+                        185,  // H: Pernah ikut relawanns?
+                        115,  // I: Ukuran Vest
+                        195,  // J: Link Bukti Bayar
+                        195,  // K: Screenshot TikTok
+                        195,  // L: Screenshot IG
+                    ].map((pixelSize, colIndex) => ({
+                        updateDimensionProperties: {
+                            range: {
                                 sheetId: newSheetId,
                                 dimension: 'COLUMNS',
-                                startIndex: 0,
-                                endIndex: headerRow.length,
+                                startIndex: colIndex,
+                                endIndex: colIndex + 1,
                             },
+                            properties: { pixelSize },
+                            fields: 'pixelSize',
                         },
-                    },
+                    }))),
                 ],
             },
         });
@@ -205,11 +220,32 @@ async function appendToSheet(sheetName, rowData) {
         await sheets.spreadsheets.values.append({
             spreadsheetId: SPREADSHEET_ID,
             range: `${sheetName}!A${rowCount + 1}`,
-            valueInputOption: 'RAW',
+            valueInputOption: 'USER_ENTERED',
             requestBody: {
                 values: [dataWithNumber],
             },
         });
+
+        // Auto-resize semua kolom setiap kali ada data baru masuk
+        const sheetMeta = await sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
+        const sheet = sheetMeta.data.sheets?.find(s => s.properties?.title === sheetName);
+        if (sheet && typeof sheet.properties?.sheetId === 'number') {
+            await sheets.spreadsheets.batchUpdate({
+                spreadsheetId: SPREADSHEET_ID,
+                requestBody: {
+                    requests: [{
+                        autoResizeDimensions: {
+                            dimensions: {
+                                sheetId: sheet.properties.sheetId,
+                                dimension: 'COLUMNS',
+                                startIndex: 0,
+                                endIndex: 12,
+                            },
+                        },
+                    }],
+                },
+            });
+        }
 
         console.log(`✅ Data appended to sheet "${sheetName}"`);
     } catch (error) {

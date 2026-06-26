@@ -139,9 +139,9 @@ async function processRegistration(job) {
       registration.instagram_username,
       registration.participation_history || 'Belum Pernah',
       registration.vest_size,
-      paymentUrl,
-      tiktokUrl,
-      instagramUrl
+      `=HYPERLINK("${paymentUrl}", "Link bukti pembayaran")`,
+      `=HYPERLINK("${tiktokUrl}", "Link bukti follow tiktok")`,
+      `=HYPERLINK("${instagramUrl}", "Link bukti follow instagram")`,
     ];
 
     await appendToSheet(folderName, rowData);
@@ -167,7 +167,6 @@ async function processRegistration(job) {
     } else {
       console.log(`   ✅ ${filesToDelete.length} files deleted from Supabase Storage`);
     }
-
 
     // ===== STEP 6: INCREMENT REGISTRATION COUNTER =====
     console.log('   🔢 Incrementing registration counter...');
@@ -227,8 +226,8 @@ async function processRegistration(job) {
       participationHistory: registration.participation_history || 'Belum Pernah',
       vestSize: registration.vest_size,
       paymentProofUrl: paymentUrl,
-      registrationNumber: newCount, // Real count!
-      maxQuota: maxQuota, // Real quota!
+      registrationNumber: newCount,
+      maxQuota: maxQuota,
       eventTitle: eventTitle,
       eventDate: eventDate
     });
