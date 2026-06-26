@@ -179,6 +179,161 @@ async function getOrCreateSheet(sheetName) {
                             fields: 'pixelSize',
                         },
                     }))),
+
+                    // 3. Dropdown: Pernah ikut relawanns? (kolom H, index 7)
+                    {
+                        setDataValidation: {
+                            range: {
+                                sheetId: newSheetId,
+                                startRowIndex: 1,
+                                endRowIndex: 1000,
+                                startColumnIndex: 7,
+                                endColumnIndex: 8,
+                            },
+                            rule: {
+                                condition: {
+                                    type: 'ONE_OF_LIST',
+                                    values: [
+                                        { userEnteredValue: 'Belum Pernah' },
+                                        { userEnteredValue: 'Sudah Pernah' },
+                                    ],
+                                },
+                                strict: true,
+                                showCustomUi: true,
+                            },
+                        },
+                    },
+
+                    // 4. Dropdown: Ukuran Vest (kolom I, index 8)
+                    {
+                        setDataValidation: {
+                            range: {
+                                sheetId: newSheetId,
+                                startRowIndex: 1,
+                                endRowIndex: 1000,
+                                startColumnIndex: 8,
+                                endColumnIndex: 9,
+                            },
+                            rule: {
+                                condition: {
+                                    type: 'ONE_OF_LIST',
+                                    values: [
+                                        { userEnteredValue: 'M' },
+                                        { userEnteredValue: 'L' },
+                                        { userEnteredValue: 'XL' },
+                                    ],
+                                },
+                                strict: true,
+                                showCustomUi: true,
+                            },
+                        },
+                    },
+
+                    // 5. Chip warna untuk Ukuran Vest: M = ungu
+                    {
+                        addConditionalFormatRule: {
+                            rule: {
+                                ranges: [{
+                                    sheetId: newSheetId,
+                                    startRowIndex: 1,
+                                    endRowIndex: 1000,
+                                    startColumnIndex: 8,
+                                    endColumnIndex: 9,
+                                }],
+                                booleanRule: {
+                                    condition: {
+                                        type: 'TEXT_EQ',
+                                        values: [{ userEnteredValue: 'M' }],
+                                    },
+                                    format: {
+                                        backgroundColor: { red: 0.816, green: 0.722, blue: 0.957 },
+                                        textFormat: { bold: true },
+                                    },
+                                },
+                            },
+                            index: 0,
+                        },
+                    },
+
+                    // 5b. Chip warna untuk Ukuran Vest: L = orange/salmon
+                    {
+                        addConditionalFormatRule: {
+                            rule: {
+                                ranges: [{
+                                    sheetId: newSheetId,
+                                    startRowIndex: 1,
+                                    endRowIndex: 1000,
+                                    startColumnIndex: 8,
+                                    endColumnIndex: 9,
+                                }],
+                                booleanRule: {
+                                    condition: {
+                                        type: 'TEXT_EQ',
+                                        values: [{ userEnteredValue: 'L' }],
+                                    },
+                                    format: {
+                                        backgroundColor: { red: 0.984, green: 0.686, blue: 0.596 },
+                                        textFormat: { bold: true },
+                                    },
+                                },
+                            },
+                            index: 1,
+                        },
+                    },
+
+                    // 5c. Chip warna untuk Ukuran Vest: XL = ungu muda
+                    {
+                        addConditionalFormatRule: {
+                            rule: {
+                                ranges: [{
+                                    sheetId: newSheetId,
+                                    startRowIndex: 1,
+                                    endRowIndex: 1000,
+                                    startColumnIndex: 8,
+                                    endColumnIndex: 9,
+                                }],
+                                booleanRule: {
+                                    condition: {
+                                        type: 'TEXT_EQ',
+                                        values: [{ userEnteredValue: 'XL' }],
+                                    },
+                                    format: {
+                                        backgroundColor: { red: 0.796, green: 0.722, blue: 0.929 },
+                                        textFormat: { bold: true },
+                                    },
+                                },
+                            },
+                            index: 2,
+                        },
+                    },
+
+                    // 6. Alternating row colors (banding)
+                    {
+                        addBanding: {
+                            bandedRange: {
+                                range: {
+                                    sheetId: newSheetId,
+                                    startRowIndex: 0,
+                                    endRowIndex: 1000,
+                                    startColumnIndex: 0,
+                                    endColumnIndex: 12,
+                                },
+                                rowProperties: {
+                                    headerColor: {
+                                        red: 0.416,
+                                        green: 0.106,
+                                        blue: 0.604,
+                                    },
+                                    firstBandColor: { red: 1, green: 1, blue: 1 },
+                                    secondBandColor: {
+                                        red: 0.945,
+                                        green: 0.906,
+                                        blue: 0.996,
+                                    },
+                                },
+                            },
+                        },
+                    },
                 ],
             },
         });
